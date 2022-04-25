@@ -1,26 +1,13 @@
 import math
 import random
 
-from pandas import value_counts
 
-
-class Player:
+class Player():
     def __init__(self, letter):
-        # letter is x or o
         self.letter = letter
 
-    # all players get their next move
     def get_move(self, game):
         pass
-
-
-class RandomComputerPlayer(Player):
-    def __init__(self, letter):
-        super().__init__(letter)
-
-    def get_move(self, game):
-        # get a random valid spot for next move
-        return random.choice(game.available_moves())
 
 
 class HumanPlayer(Player):
@@ -31,64 +18,65 @@ class HumanPlayer(Player):
         valid_square = False
         val = None
         while not valid_square:
-            square = input(self.letter + '\'s turn. Input move (0-8)')
+            square = input(self.letter + '\'s turn. Input move (0-9): ')
             try:
                 val = int(square)
-                if val in game.available_moves():
+                if val not in game.available_moves():
                     raise ValueError
+                valid_square = True
             except ValueError:
-                print('Invalid move. Try again.')
-
+                print('Invalid square. Try again.')
         return val
 
 
-class GeniusComputerPlayer(Player):
+class RandomComputerPlayer(Player):
     def __init__(self, letter):
         super().__init__(letter)
 
     def get_move(self, game):
-        if len(game.available_moves()) == 9:  # first move, random choice one of the 9 spots
+        square = random.choice(game.available_moves())
+        return square
+
+
+class SmartComputerPlayer(Player):
+    def __init__(self, letter):
+        super().__init__(letter)
+
+    def get_move(self, game):
+        if len(game.available_moves()) == 9:
             square = random.choice(game.available_moves())
         else:
-            # get the square based off the minimax algorithm
             square = self.minimax(game, self.letter)['position']
         return square
 
-    # recursion function
     def minimax(self, state, player):
-        max_player = self.letter
-        other_player = 'o' if self.letter == 'x' else 'x'
+        max_player = self.letter  # yourself
+        other_player = 'O' if player == 'X' else 'X'
 
-        #Base Case
+        # first we want to check if the previous move is a winner
         if state.current_winner == other_player:
-            return {'position': None, 'score': 1 * (state.num_empty_square() + 1) if other_player == max_player else -1*(state.num_empty_square() + 1)}
-
-        elif not state.empty_square():
+            return {'position': None, 'score': 1 * (state.num_empty_squares() + 1) if other_player == max_player else -1 * (
+                        state.num_empty_squares() + 1)}
+        elif not state.empty_squares():
             return {'position': None, 'score': 0}
 
         if player == max_player:
-            best = {'position': None, 'score': -math.inf}
+            best = {'position': None, 'score': -math.inf}  # each score should maximize
         else:
-            best = {'position': None, 'score': math.inf}
-
+            best = {'position': None, 'score': math.inf}  # each score should minimize
         for possible_move in state.available_moves():
-            #1. make a move, try that spot
             state.make_move(possible_move, player)
+            sim_score = self.minimax(state, other_player)  # simulate a game after making that move
 
-            # 2. resurse using minimax to simukate a gama after making that move
-            sim_score = self.minimax(state, other_player)
-
-            #3. undo the move
+            # undo move
             state.board[possible_move] = ' '
             state.current_winner = None
-            sim_score['position'] = possible_move #otherwise this will get messed upp from the recursion part
+            sim_score['position'] = possible_move  # this represents the move optimal next move
 
-            #4. update the dictionary if necessary
-            if player == max_player:
+            if player == max_player:  # X is max player
                 if sim_score['score'] > best['score']:
-                    best = sim_score #replace the best with the new best
-                else: # minimize the other player
-                    if sim_score['score'] < best['score']:
-                        best = sim_score # replace best
-
+                    best = sim_score
+            else:
+                if sim_score['score'] < best['score']:
+                    best = sim_score
         return best
